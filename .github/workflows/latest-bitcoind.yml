@@ -18,7 +18,8 @@ jobs:
       - name: Checkout bitcoind master
         uses: actions/checkout@v3
         with:
-          repository: bitcoin/bitcoin
+          repository: pinheadmz/bitcoin
+          ref: http-rewrite-13march2025
           path: bitcoin
 
       - name: Install bitcoind dependencies
@@ -48,5 +49,5 @@ jobs:
         run: echo "fs.file-max = 1024000" | sudo tee -a /etc/sysctl.conf
 
       - name: Run eclair tests
-        run: BITCOIND_DIR=$GITHUB_WORKSPACE/bitcoin/build/src ./mvnw test
+        run: BITCOIND_DIR=$GITHUB_WORKSPACE/bitcoin/build/bin ./mvnw test
         working-directory: ./eclair
