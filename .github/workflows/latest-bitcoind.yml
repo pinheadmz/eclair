@@ -18,8 +18,8 @@ jobs:
       - name: Checkout bitcoind master
         uses: actions/checkout@v3
         with:
-          repository: pinheadmz/bitcoin
-          ref: http-rewrite-13march2025
+          repository: furszy/bitcoin-core
+          ref: 2025_threadpool_http_server
           path: bitcoin
 
       - name: Install bitcoind dependencies
