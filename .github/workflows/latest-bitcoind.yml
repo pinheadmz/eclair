@@ -23,7 +23,7 @@ jobs:
           path: bitcoin
 
       - name: Install bitcoind dependencies
-        run: sudo apt-get install build-essential cmake pkg-config bsdmainutils python3 libevent-dev libboost-dev libminiupnpc-dev libnatpmp-dev libzmq3-dev libsqlite3-dev systemtap-sdt-dev
+        run: sudo apt-get install build-essential cmake pkg-config bsdmainutils python3 libevent-dev libboost-dev libminiupnpc-dev libnatpmp-dev libzmq3-dev libsqlite3-dev systemtap-sdt-dev libcapnp-dev capnproto
         working-directory: ./bitcoin
 
       - name: Init and configure cmake build
