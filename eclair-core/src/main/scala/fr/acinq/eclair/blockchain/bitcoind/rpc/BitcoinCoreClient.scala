@@ -704,13 +704,18 @@ class BitcoinCoreClient(val rpcClient: BitcoinJsonRPCClient, val lockUtxos: Bool
     rpcClient.invoke("getmempoolentry", txid).map(json => {
       val JInt(vsize) = json \ "vsize"
       val JInt(weight) = json \ "weight"
-      val JInt(ancestorCount) = json \ "ancestorcount"
-      val JInt(descendantCount) = json \ "descendantcount"
+      // Bitcoin Core v31+ (cluster mempool, PR #33629) removed the ancestor*,
+      // descendant* and bip125-replaceable fields. Fall back to neutral
+      // defaults when they are absent: ancestor/descendant counts collapse to
+      // 0 (after the -1 self adjustment below), and replaceable defaults to
+      // true (v3 mempool policy still treats every tx as RBF-able).
+      val ancestorCount = (json \ "ancestorcount").extractOpt[BigInt].getOrElse(BigInt(1))
+      val descendantCount = (json \ "descendantcount").extractOpt[BigInt].getOrElse(BigInt(1))
       val JDecimal(fees) = json \ "fees" \ "base"
-      val JDecimal(ancestorFees) = json \ "fees" \ "ancestor"
-      val JDecimal(descendantFees) = json \ "fees" \ "descendant"
-      val JBool(replaceable) = json \ "bip125-replaceable"
-      val unconfirmedParents = (json \ "depends").extract[List[String]].map(TxId.fromValidHex).toSet
+      val ancestorFees = (json \ "fees" \ "ancestor").extractOpt[BigDecimal].getOrElse(fees)
+      val descendantFees = (json \ "fees" \ "descendant").extractOpt[BigDecimal].getOrElse(fees)
+      val replaceable = (json \ "bip125-replaceable").extractOpt[Boolean].getOrElse(true)
+      val unconfirmedParents = (json \ "depends").extractOpt[List[String]].getOrElse(Nil).map(TxId.fromValidHex).toSet
       // NB: bitcoind counts the transaction itself as its own ancestor and descendant, which is confusing: we fix that by decrementing these counters.
       MempoolTx(txid, vsize.toLong, weight.toLong, replaceable, toSatoshi(fees), ancestorCount.toInt - 1, toSatoshi(ancestorFees), descendantCount.toInt - 1, toSatoshi(descendantFees), unconfirmedParents)
     })
