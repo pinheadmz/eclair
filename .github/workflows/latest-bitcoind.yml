@@ -41,5 +41,5 @@ jobs:
         run: echo "fs.file-max = 1024000" | sudo tee -a /etc/sysctl.conf
 
       - name: Run eclair tests
-        run: BITCOIND_DIR=$GITHUB_WORKSPACE/bin ./mvnw test
+        run: BITCOIND_DIR=$GITHUB_WORKSPACE/bin ./mvnw test -DtagsToExclude=external-api
         working-directory: ./eclair
