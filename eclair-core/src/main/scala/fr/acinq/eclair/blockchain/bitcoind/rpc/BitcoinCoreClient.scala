@@ -703,13 +703,14 @@ class BitcoinCoreClient(val rpcClient: BitcoinJsonRPCClient, val lockUtxos: Bool
   def getMempoolTx(txid: TxId)(implicit ec: ExecutionContext): Future[MempoolTx] = {
     rpcClient.invoke("getmempoolentry", txid).map(json => {
       val JInt(vsize) = json \ "vsize"
-      val JInt(weight) = json \ "weight"
-      val JInt(ancestorCount) = json \ "ancestorcount"
-      val JInt(descendantCount) = json \ "descendantcount"
-      val JDecimal(fees) = json \ "fees" \ "base"
-      val JDecimal(ancestorFees) = json \ "fees" \ "ancestor"
-      val JDecimal(descendantFees) = json \ "fees" \ "descendant"
-      val unconfirmedParents = (json \ "depends").extract[List[String]].map(TxId.fromValidHex).toSet
+      val JInt(weight) = (json \ "weight").orElse(JInt(vsize))
+      val JInt(ancestorCount) = (json \ "ancestorcount").orElse(JInt(1))
+      val JInt(descendantCount) = (json \ "descendantcount").orElse(JInt(1))
+      val JDecimal(fees) = (json \ "fees" \ "base").orElse(json \ "fee")
+      val JDecimal(ancestorFees) = (json \ "fees" \ "ancestor").orElse(JDecimal(0))
+      val JDecimal(descendantFees) = (json \ "fees" \ "descendant").orElse(JDecimal(0))
+      val JBool(replaceable) = (json \ "bip125-replaceable").orElse(JBool(false))
+      val unconfirmedParents = (json \ "depends").extractOpt[List[String]].getOrElse(Nil).map(TxId.fromValidHex).toSet
       // NB: bitcoind counts the transaction itself as its own ancestor and descendant, which is confusing: we fix that by decrementing these counters.
       MempoolTx(txid, vsize.toLong, weight.toLong, toSatoshi(fees), ancestorCount.toInt - 1, toSatoshi(ancestorFees), descendantCount.toInt - 1, toSatoshi(descendantFees), unconfirmedParents)
     })
