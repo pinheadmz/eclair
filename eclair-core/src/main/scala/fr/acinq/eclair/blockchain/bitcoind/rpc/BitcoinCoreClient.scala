@@ -702,6 +702,9 @@ class BitcoinCoreClient(val rpcClient: BitcoinJsonRPCClient, val lockUtxos: Bool
 
   def getMempoolTx(txid: TxId)(implicit ec: ExecutionContext): Future[MempoolTx] = {
     rpcClient.invoke("getmempoolentry", txid).map(json => {
+      // Tolerate cluster-mempool schema changes (v31+): ancestor/descendant
+      // fields may be absent or renamed. Use defaults for fields that may
+      // not exist in newer bitcoind versions.
       val JInt(vsize) = json \ "vsize"
       val JInt(weight) = (json \ "weight").orElse(JInt(vsize))
       val JInt(ancestorCount) = (json \ "ancestorcount").orElse(JInt(1))
