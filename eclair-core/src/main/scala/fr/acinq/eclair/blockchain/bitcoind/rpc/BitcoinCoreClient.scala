@@ -702,14 +702,18 @@ class BitcoinCoreClient(val rpcClient: BitcoinJsonRPCClient, val lockUtxos: Bool
 
   def getMempoolTx(txid: TxId)(implicit ec: ExecutionContext): Future[MempoolTx] = {
     rpcClient.invoke("getmempoolentry", txid).map(json => {
+      // Tolerate cluster-mempool schema changes (v28+): bip125-replaceable,
+      // ancestorcount/descendantcount, and fees.ancestor/fees.descendant
+      // may be absent. Use defaults for fields that may not exist.
       val JInt(vsize) = json \ "vsize"
-      val JInt(weight) = json \ "weight"
-      val JInt(ancestorCount) = json \ "ancestorcount"
-      val JInt(descendantCount) = json \ "descendantcount"
-      val JDecimal(fees) = json \ "fees" \ "base"
-      val JDecimal(ancestorFees) = json \ "fees" \ "ancestor"
-      val JDecimal(descendantFees) = json \ "fees" \ "descendant"
-      val unconfirmedParents = (json \ "depends").extract[List[String]].map(TxId.fromValidHex).toSet
+      val weight = (json \ "weight") match { case JNothing => vsize; case JInt(w) => w }
+      val ancestorCount = (json \ "ancestorcount") match { case JNothing => BigInt(1); case JInt(c) => c }
+      val descendantCount = (json \ "descendantcount") match { case JNothing => BigInt(1); case JInt(c) => c }
+      val fees = (json \ "fees" \ "base") match { case JNothing => json \ "fee" match { case JDecimal(d) => d }; case JDecimal(d) => d }
+      val ancestorFees = (json \ "fees" \ "ancestor") match { case JNothing => BigDecimal(0); case JDecimal(d) => d }
+      val descendantFees = (json \ "fees" \ "descendant") match { case JNothing => BigDecimal(0); case JDecimal(d) => d }
+      val replaceable = (json \ "bip125-replaceable") match { case JNothing => false; case JBool(b) => b }
+      val unconfirmedParents = (json \ "depends").extractOpt[List[String]].getOrElse(Nil).map(TxId.fromValidHex).toSet
       // NB: bitcoind counts the transaction itself as its own ancestor and descendant, which is confusing: we fix that by decrementing these counters.
       MempoolTx(txid, vsize.toLong, weight.toLong, toSatoshi(fees), ancestorCount.toInt - 1, toSatoshi(ancestorFees), descendantCount.toInt - 1, toSatoshi(descendantFees), unconfirmedParents)
     })
